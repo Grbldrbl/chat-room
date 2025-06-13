@@ -10,26 +10,56 @@
   <h1>Chat Room</h1>
   <div id="messages"></div>
   <input id="input" autocomplete="off" placeholder="Type a message..." /><button onclick="sendMessage()">Send</button>
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
+  <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
+<script>
+  // Prompt for nickname
+  let nickname = '';
+  while (!nickname) {
+    nickname = prompt("Enter your nickname:");
+    if (!nickname) alert("Nickname cannot be empty.");
+  }
 
-    const messages = document.getElementById('messages');
-    const input = document.getElementById('input');
+  // Ably setup
+  var ably = new Ably.Realtime('YOUR-ABLY-API-KEY');
+  var channel = ably.channels.get('chat-room');
 
-    socket.on('message', (msg) => {
-      const div = document.createElement('div');
-      div.textContent = msg;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    });
-
-    function sendMessage() {
-      if (input.value) {
-        socket.emit('message', input.value);
-        input.value = '';
-      }
+  // Show message history (last 50)
+  channel.history({ limit: 50 }, function(err, resultPage) {
+    if (resultPage && resultPage.items) {
+      resultPage.items.reverse().forEach(function(msg) {
+        addMessage(msg.data.nickname, msg.data.text);
+      });
+      scrollMessages();
     }
-  </script>
+  });
+
+  // Receive new messages
+  channel.subscribe('message', function(msg) {
+    addMessage(msg.data.nickname, msg.data.text);
+    scrollMessages();
+  });
+
+  // Send a message
+  function sendMessage() {
+    var input = document.getElementById('input');
+    if (input.value) {
+      channel.publish('message', { nickname: nickname, text: input.value });
+      input.value = '';
+    }
+  }
+
+  // Helper: Add message to chat
+  function addMessage(nick, text) {
+    var div = document.createElement('div');
+    div.textContent = nick + ': ' + text;
+    document.getElementById('messages').appendChild(div);
+  }
+
+  // Helper: Scroll to bottom
+  function scrollMessages() {
+    var messagesDiv = document.getElementById('messages');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+</script>
 </body>
 </html>
