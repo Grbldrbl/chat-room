@@ -1,18 +1,23 @@
-const { Server } = require("socket.io");
-const express = require("express");
-const app = express();
-const server = require("http").createServer(app);
-const io = new Server(server);
+// Join Ably presence
+channel.presence.enter({ nickname });
 
-app.use(express.static(__dirname));
+// Listen for presence updates
+channel.presence.subscribe('enter', function(member) {
+  updateOnlineUsers();
+});
+channel.presence.subscribe('leave', function(member) {
+  updateOnlineUsers();
+});
 
-io.on("connection", (socket) => {
-  socket.on("message", (msg) => {
-    io.emit("message", msg);
+// Function to update the user list
+function updateOnlineUsers() {
+  channel.presence.get(function(err, members) {
+    const usersDiv = document.getElementById('users');
+    usersDiv.innerHTML = '';
+    members.forEach(member => {
+      const div = document.createElement('div');
+      div.textContent = member.data.nickname;
+      usersDiv.appendChild(div);
+    });
   });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+}
